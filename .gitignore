@@ -1,0 +1,24 @@
+# compilation files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution or packaging files
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+*.egg-info/
+*.egg
+
+# Local files
+results/
+Output/
+*.txt
+*.eps
+*.sh
+*.sw*
