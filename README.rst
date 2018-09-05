@@ -1,5 +1,5 @@
-Bs2K Phenomenology
+Python codes to reconstruct some form factor related results from Fermilab Lattice and MILC Collaborations.
 --------
 
-To use (with caution), simply do::
+The code package is currently under development. Check back later ...
 
