@@ -18,7 +18,12 @@ eggs/
 # Local files
 results/
 Output/
+data/
+bin/
 *.txt
 *.eps
 *.sh
 *.sw*
+
+# Need to include the LICENSE.txt file
+!LICENSE.txt

@@ -1,15 +1,14 @@
 """
-This is a code to reconstruct the Bs -> K l nu form factors.
+This is a code to reconstruct the semileptonic form factors.
 """
 
 import numpy as np
 import gvar as gv
 import argparse
 from tabulate import tabulate
-#import bs2k_form_factors.constants as const
-import constants as const
-import constants_b2d as const_b2d
-import constants_bs2ds as const_bs2ds
+import constants.constants_bs2k_2018 as const
+import constants.constants_b2d_2012 as const_b2d
+import constants.constants_bs2ds_2012 as const_bs2ds
 
 class Bs2DsFormFactors(object):
     """
@@ -106,6 +105,28 @@ class Bs2DsFormFactors(object):
 
         return ans
 
+    def fcn_ratio(self, z, p, nz):
+        """
+        Functional form of the form factors.
+        """
+        nz = self.nz
+        ans = {}
+        ans['f+'] = sum(p['b'][i] * z**i for i in range(nz))
+        ans['f0'] = sum(p['b0'][i] * z**i for i in range(nz))
+
+        return ans['f+'] / ans['f0']
+
+    def fcn_product(self, z, p, nz):
+        """
+        Functional form of the form factors.
+        """
+        nz = self.nz
+        ans = {}
+        ans['f+'] = sum(p['b'][i] * z**i for i in range(nz))
+        ans['f0'] = sum(p['b0'][i] * z**i for i in range(nz))
+
+        return ans['f+'] * ans['f0']
+
     def params(self, decay='Bs2Ds'):
         """
         Read in fit results.
@@ -127,27 +148,18 @@ class Bs2DsFormFactors(object):
         p0err = np.loadtxt(dir_str + "p0mean_err" + tail_str)
         pcorr = np.loadtxt(dir_str + "corr" + tail_str)
         pcov = np.loadtxt(dir_str + "cov" + tail_str)
-        #pcov = np.loadtxt("/home/yuzhi/analysis/fits/xzfit_git/cov.txt")
-        # print pmean, p0mean
-        n1 = len(pmean)
+        nz = len(pmean)
         pmean = np.append(pmean, p0mean)
         perr = np.append(perr, p0err)
         D = np.diag(perr)
         ppcov = np.matmul(D, np.matmul(pcorr,D))
-        #print pcov
-        #print ppcov
-        #print pmean
-        #print pcov
-        #print pcorr
-        #print D
         #DInv = np.linalg.inv(D)
         #correlationMat = np.matmul(DInv, np.matmul(pcov,DInv))
         #print correlationMat - pcorr
         x = gv.gvar(pmean, pcov)
-        p['b'] = x[:n1]
-        p['b0'] = x[n1:]
+        p['b'] = x[:nz]
+        p['b0'] = x[nz:]
         #print gv.evalcov(p)
-        #print pcov
         return p
 
 
@@ -190,7 +202,6 @@ class Bs2DsFormFactors(object):
             PHI = const_b2d.PHI0
         elif form == 'f+':
             PHI = const_b2d.PHI_PLUS
-        #if form not in ('f+', 'f0'):
         else:
             print "Only f+ and f0 form factors are provided."
             return
@@ -207,11 +218,6 @@ class Bs2KFormFactors(object):
     Reconstruct Bs -> k l nu form factors class.
     """
 
-    #Pphi = {}
-    #Pphi['f+'] = lambda self, q_sq: (1.0 - q_sq / const.MBSTAR**2)
-    #Pphi['f0'] = lambda q_sq: 1.0
-    # with poles
-    #Pphi['f0'] = lambda self, q_sq: (1.0 - q_sq / const.MBSTAR0**2)
     def Pphi(self, q_sq, form='f+'):
         """
         The Blaschke pole factors (and the outer function).
@@ -280,6 +286,25 @@ class Bs2KFormFactors(object):
         ans['f0'] = sum(p['b0'][i] * z**i for i in range(nz))
         return ans
 
+    def fcn_ratio(self, z, p, nz=4):
+        """
+        BCL parametrization functional form of the form factors.
+        """
+        ans = {}
+        ans['f+'] = sum(p['b'][i] * (z**i - (-1)**(i - nz) * (1.0*i / nz) * z**nz) for i in range(nz))
+        ans['f0'] = sum(p['b0'][i] * z**i for i in range(nz))
+        return ans['f+'] / ans['f0']
+
+    def fcn_product(self, z, p, nz=4):
+        """
+        BCL parametrization functional form of the form factors.
+        """
+        ans = {}
+        ans['f+'] = sum(p['b'][i] * (z**i - (-1)**(i - nz) * (1.0*i / nz) * z**nz) for i in range(nz))
+        ans['f0'] = sum(p['b0'][i] * z**i for i in range(nz))
+        return ans['f+'] * ans['f0']
+
+
     def params(self):
         """
         Read in fit results.
@@ -290,20 +315,16 @@ class Bs2KFormFactors(object):
         p0mean = np.loadtxt(dir_str + "p0mean.txt")
         pcorr = np.loadtxt(dir_str + "corr.txt")
         pcov = np.loadtxt(dir_str + "cov.txt")
-        # print pmean, p0mean
+        nz = len(pmean)
         pmean = np.append(pmean, p0mean)
-        #print pmean
-        #print pcov
-        #print pcorr
         D = np.sqrt(np.diag(np.diag(pcov)))
         DInv = np.linalg.inv(D)
         correlationMat = np.matmul(DInv, np.matmul(pcov,DInv))
         #print correlationMat - pcorr
         x = gv.gvar(pmean, pcov)
-        p['b'] = x[:4]
-        p['b0'] = x[4:]
+        p['b'] = x[:nz]
+        p['b0'] = x[nz:]
         #print gv.evalcov(p)
-        #print pcov
         return p
 
     def form_factor_fixed_qsq(self, form='f+', qsq=0.0,
@@ -331,6 +352,47 @@ class Bs2KFormFactors(object):
             else:
                 res = [z, gv.mean(formfactor), gv.sdev(formfactor)]
         return res
+
+
+    def form_factor_pr_fixed_qsq(self, form1='f+', form2='f0', qsq=0.0,
+              var='qsq', withpole1=True, withpole2=True, nz1=4, nz2=4, gvar=True):
+        """
+        Construct the product of f+ and f0 form factors at a fixed q^2 value.
+        """
+        if form1 not in ('f+', 'f0') or form2 not in ('f+', 'f0'):
+            print "Only f+ and f0 form factors are provided."
+            return
+
+        z = self.q_sq2z(qsq)
+        if withpole1:
+            f1 = self.fcn(z, self.params())[form1] / self.Pphi(qsq, form1)
+        else:
+            f1 = self.fcn(z, self.params())[form1]
+        if withpole2:
+            f2 = self.fcn(z, self.params())[form2] / self.Pphi(qsq, form2)
+        else:
+            f2 = self.fcn(z, self.params())[form2]
+
+        product = f1 * f2
+        ratio = f1 / f2
+        return product, ratio
+#        if var == 'qsq':
+#            if gvar:
+#                res1 = [qsq, product]
+#                res2 = [qsq, ratio]
+#            else:
+#                res1 = [qsq, gv.mean(product), gv.sdev(product)]
+#                res2 = [qsq, gv.mean(ratio), gv.sdev(ratio)]
+#        elif var == 'z':
+#            if gvar:
+#                res1 = [qsq, product]
+#                res2 = [qsq, ratio]
+#            else:
+#                res1 = [z, gv.mean(product), gv.sdev(product)]
+#                res2 = [z, gv.mean(ratio), gv.sdev(ratio)]
+#        return res1, res2
+
+
 
     def form_factor(self, form='f+', start=0, end=const.TMINUS, num_points=500,
               var='qsq', withpole=True, nz=4, gvar=True):
