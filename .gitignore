@@ -24,6 +24,7 @@ bin/
 *.eps
 *.sh
 *.sw*
+out*
 
 # Need to include the LICENSE.txt file
 !LICENSE.txt

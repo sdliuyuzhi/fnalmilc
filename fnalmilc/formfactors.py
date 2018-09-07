@@ -164,7 +164,7 @@ class Bs2DsFormFactors(object):
 
 
     def form_factor_fixed_qsq(self, form='f+', qsq=0.0,
-              var='qsq', decay='Bs2Ds', withpole=False, nz=3, gvar=True):
+              var='qsq', decay='Bs2Ds', withpole=False, nz=3, gvar=False):
         """
         Construct the f+ or f0 form factors at a fixed q^2 value.
         """
@@ -194,7 +194,7 @@ class Bs2DsFormFactors(object):
 
 
     def form_factor(self, form='f+', start=0, end=const.TMINUS, num_points=500,
-              var='qsq', decay='Bs2Ds', withpole=False, nz=3, gvar=True):
+              var='qsq', decay='Bs2Ds', withpole=False, nz=3, gvar=False):
         """
         Construct the f+ or f0 form factors.
         """
@@ -769,21 +769,21 @@ def main():
 
     formfactors_bs2k = Bs2KFormFactors()
 
-#    decay = 'B2D'
-#    qmin = 0
-#    fp_b2d = formfactors_b2d.form_factor('f+', qmin, const_b2d.TMINUS, 500, 'qsq', decay)
-#    f0_b2d = formfactors_b2d.form_factor('f0', qmin, const_b2d.TMINUS, 500, 'qsq', decay)
-#
-#
-#    decay = 'Bs2Ds'
-#    fp_bs2ds = formfactors_bs2ds.form_factor('f+', qmin, const_b2d.TMINUS, 500, 'qsq', decay)
-#    f0_bs2ds = formfactors_bs2ds.form_factor('f0', qmin, const_b2d.TMINUS, 500, 'qsq', decay)
-#
-#
-#    decay = 'B2D2015'
-#    fp_b2d2015 = formfactors_b2d2015.form_factor('f+', qmin, const_b2d.TMINUS, 500, 'qsq', decay)
-#    f0_b2d2015 = formfactors_b2d2015.form_factor('f0', qmin, const_b2d.TMINUS, 500, 'qsq', decay)
-#
+    decay = 'B2D'
+    qmin = 0
+    fp_b2d = formfactors_b2d.form_factor('f+', qmin, const_b2d.TMINUS, 500, 'qsq', decay)
+    f0_b2d = formfactors_b2d.form_factor('f0', qmin, const_b2d.TMINUS, 500, 'qsq', decay)
+
+
+    decay = 'Bs2Ds'
+    fp_bs2ds = formfactors_bs2ds.form_factor('f+', qmin, const_b2d.TMINUS, 500, 'qsq', decay)
+    f0_bs2ds = formfactors_bs2ds.form_factor('f0', qmin, const_b2d.TMINUS, 500, 'qsq', decay)
+
+
+    decay = 'B2D2015'
+    fp_b2d2015 = formfactors_b2d2015.form_factor('f+', qmin, const_b2d.TMINUS, 500, 'qsq', decay)
+    f0_b2d2015 = formfactors_b2d2015.form_factor('f0', qmin, const_b2d.TMINUS, 500, 'qsq', decay)
+
 
     qmin = 0
     fp_bs2k = formfactors_bs2k.form_factor('f+', qmin, const_b2d.TMINUS, 500,
@@ -791,41 +791,48 @@ def main():
     f0_bs2k = formfactors_bs2k.form_factor('f0', qmin, const_b2d.TMINUS, 500,
                                            'qsq', withpole=True, gvar=False)
 
-    print tabulate(fp_bs2k, headers=['qsq',"f+", "err"])
-    print tabulate(f0_bs2k, headers=['qsq',"f0", "err"])
-#    fp_b2d_gvar = np.array([[qsq, gv.gvar(mean, err)] for qsq, mean, err in fp_b2d])
-#    f0_b2d_gvar = np.array([[qsq, gv.gvar(mean, err)] for qsq, mean, err in f0_b2d])
-#
-#    fp_bs2ds_gvar = np.array([[qsq, gv.gvar(mean, err)] for qsq, mean, err in
-#                              fp_bs2ds])
-#    f0_bs2ds_gvar = np.array([[qsq, gv.gvar(mean, err)] for qsq, mean, err in
-#                              f0_bs2ds])
-#
-#    fp_b2d2015_gvar = np.array([[qsq, gv.gvar(mean, err)] for qsq, mean, err in
-#                                fp_b2d2015])
-#    f0_b2d2015_gvar = np.array([[qsq, gv.gvar(mean, err)] for qsq, mean, err in
-#                                f0_b2d2015])
-#
-#    fp_bs2k_gvar = np.array([[qsq, gv.gvar(mean, err)] for qsq, mean, err in
-#                             fp_bs2k])
-#    f0_bs2k_gvar = np.array([[qsq, gv.gvar(mean, err)] for qsq, mean, err in
-#                             f0_bs2k])
-#
-#
-#    fp_ratio = np.array([[qsq, gv.mean(bs2k/bs2ds), gv.sdev(bs2k/bs2ds)] for qsq,
-#                         bs2k, bs2ds in zip(fp_bs2k_gvar[:,0], fp_bs2k_gvar[:,1],
-#                                          fp_bs2ds_gvar[:,1])])
+    #print tabulate(fp_bs2k, headers=['qsq',"f+", "err"])
+    #print tabulate(f0_bs2k, headers=['qsq',"f0", "err"])
+    print fp_b2d[0]
+    fp_b2d_gvar = np.array([[qsq, gv.gvar(mean, err)] for qsq, mean, err in fp_b2d])
+    f0_b2d_gvar = np.array([[qsq, gv.gvar(mean, err)] for qsq, mean, err in f0_b2d])
 
-#    print 'qsq=0', fp_bs2k_gvar[0], fp_bs2ds_gvar[0], fp_b2d_gvar[0], fp_b2d2015_gvar[0]
-#    print tabulate(fp_ratio, headers=['qsq',"f+", "err"])
+    fp_bs2ds_gvar = np.array([[qsq, gv.gvar(mean, err)] for qsq, mean, err in
+                              fp_bs2ds])
+    f0_bs2ds_gvar = np.array([[qsq, gv.gvar(mean, err)] for qsq, mean, err in
+                              f0_bs2ds])
 
-#    qsq = fp_bs2k_gvar[:,0]
-#    fp_ratio_corrected = fp_bs2k_gvar[:,1] * fp_b2d_gvar[:,1] / fp_bs2ds_gvar[:,1] / fp_b2d2015_gvar[:,1]
-#    fp_ratio_corrected = [[qsq, gv.mean(ratio), gv.sdev(ratio)] for qsq, ratio
-#                          in zip(qsq, fp_ratio_corrected)]
+    fp_b2d2015_gvar = np.array([[qsq, gv.gvar(mean, err)] for qsq, mean, err in
+                                fp_b2d2015])
+    f0_b2d2015_gvar = np.array([[qsq, gv.gvar(mean, err)] for qsq, mean, err in
+                                f0_b2d2015])
 
-#    print tabulate(fp_ratio_corrected, headers=['qsq',"f+", "err"])
+    fp_bs2k_gvar = np.array([[qsq, gv.gvar(mean, err)] for qsq, mean, err in
+                             fp_bs2k])
+    f0_bs2k_gvar = np.array([[qsq, gv.gvar(mean, err)] for qsq, mean, err in
+                             f0_bs2k])
 
+
+    fp_ratio = np.array([[qsq, gv.mean(bs2k/bs2ds), gv.sdev(bs2k/bs2ds)] for qsq,
+                         bs2k, bs2ds in zip(fp_bs2k_gvar[:,0], fp_bs2k_gvar[:,1],
+                                          fp_bs2ds_gvar[:,1])])
+
+    print 'qsq=0', fp_bs2k_gvar[0], fp_bs2ds_gvar[0], fp_b2d_gvar[0], fp_b2d2015_gvar[0]
+    print tabulate(fp_ratio, headers=['qsq',"fp_ratio bs2k/bs2ds", "err"])
+
+    qsq = fp_bs2k_gvar[:,0]
+    fp_ratio_corrected = fp_bs2k_gvar[:,1] * fp_b2d_gvar[:,1] / fp_bs2ds_gvar[:,1] / fp_b2d2015_gvar[:,1]
+    fp_ratio_corrected = [[qsq, gv.mean(ratio), gv.sdev(ratio)] for qsq, ratio
+                          in zip(qsq, fp_ratio_corrected)]
+
+    print tabulate(fp_ratio_corrected, headers=['qsq',"fp_ratio_corrected bs2k*b2d/bs2ds/b2d2015", "err"])
+
+    qsq = fp_bs2k_gvar[:,0]
+    fp_bs2ds_corrected = fp_b2d2015_gvar[:,1] * fp_bs2ds_gvar[:,1] / fp_b2d_gvar[:,1]
+    fp_bs2ds_corrected = [[qsq, gv.mean(ratio), gv.sdev(ratio)] for qsq, ratio
+                          in zip(qsq, fp_bs2ds_corrected)]
+
+    print tabulate(fp_bs2ds_corrected, headers=['qsq',"fp_bs2ds_corrected b22015*bs2ds/b2d", "err"])
 #    print tabulate(fp, headers=['z',"f+", "err"])
 #    print "-" * 20
 #    print tabulate(f0, headers=['z',"f0", "err"])

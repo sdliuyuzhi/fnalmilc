@@ -60,6 +60,12 @@ class Bs2KPheno(object):
         area = np.sum(fx)*(b-a)/N
         return area
 
+    def integrate2(self, f, a, b, N):
+        x = np.linspace(a+(b-a)/(2*N), b-(b-a)/(2*N), N)
+        fx = f(x)
+        area = np.sum(fx)*(b-a)/N
+        return area
+
     def total_decay_rate(self, lepton='mu', err=10**(-5)):
         if lepton == 'mu':
             ml = const.MMU
@@ -80,6 +86,24 @@ class Bs2KPheno(object):
             diff = abs(gv.mean(res - res_old))
             #print num_points, res, diff
         return gv.gvar(res), gv.sdev(res)
+
+    def ratio_total_decay_rate(self, err=10**(-3)):
+        ml = const.MMU
+
+        num_points = 100
+        res_err = 1.0
+        diff = 1.0
+        res = gv.gvar(0.0,0.0)
+        while diff > err:
+            res_old = res
+            res = self.integrate2(self.ratio_diff_decay_rate_fixed_qsq, ml**2,
+                                 const.TMINUS, num_points)
+            num_points *= 2
+            diff = abs(gv.mean(res - res_old))
+            print num_points, res, diff
+        return gv.gvar(res), gv.sdev(res)
+
+
 
     def diff_decay_rate_fixed_q_sq(self, ml, qsq):
         z = Bs2K.q_sq2z(qsq)
@@ -350,8 +374,9 @@ def main():
     ##########################
     # R tau nu
     ##########################
-    print pheno.ratio_diff_decay_rate_fixed_qsq(1.0)
-    print pheno.print_R()
+    #print pheno.ratio_diff_decay_rate_fixed_qsq(1.0)
+    #print pheno.print_R()
+    print pheno.ratio_total_decay_rate()
 
 if __name__ == '__main__':
     main()
