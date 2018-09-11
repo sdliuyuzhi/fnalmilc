@@ -85,23 +85,17 @@ class Bs2KPheno(object):
             num_points *= 2
             diff = abs(gv.mean(res - res_old))
             #print num_points, res, diff
-        return gv.gvar(res), gv.sdev(res)
+        return gv.mean(res), gv.sdev(res)
 
     def ratio_total_decay_rate(self, err=10**(-3)):
-        ml = const.MMU
-
-        num_points = 100
-        res_err = 1.0
-        diff = 1.0
-        res = gv.gvar(0.0,0.0)
-        while diff > err:
-            res_old = res
-            res = self.integrate2(self.ratio_diff_decay_rate_fixed_qsq, ml**2,
-                                 const.TMINUS, num_points)
-            num_points *= 2
-            diff = abs(gv.mean(res - res_old))
-            print num_points, res, diff
-        return gv.gvar(res), gv.sdev(res)
+        lepton = 'mu'
+        mean, sdev = self.total_decay_rate(lepton)
+        print mean, sdev
+        mu_decay_rate = gv.gvar(mean, sdev)
+        lepton = 'tau'
+        mean, sdev = self.total_decay_rate(lepton)
+        tau_decay_rate = gv.gvar(mean, sdev)
+        return  tau_decay_rate / mu_decay_rate
 
 
 
@@ -185,6 +179,7 @@ class Bs2KPheno(object):
         ratio = Bs2K.form_factor_pr_fixed_qsq('f+', 'f0', qsq)[1]
 
         res = (fac_overall_tau * (fac_fplus_tau * ratio + fac_fzero_tau)) / (fac_overall_mu * (fac_fplus_mu * ratio + fac_fzero_mu))
+        print res
         return res
 
     def ratio_diff_decay_rate(self, num_points=500):
@@ -242,7 +237,77 @@ class Bs2KPheno(object):
 
         return res
 
-    def asymmetry(self, lepton='mu', exclusive=True, normalize=True,
+
+    def asymmetry_fixed_q_sq(self, ml, qsq):
+        z = Bs2K.q_sq2z(qsq)
+        pk = self.q_sq2PK(qsq)
+        MBS = const.MBS
+        MK = const.MK
+        fp = Bs2K.fcn(z, Bs2K.params())['f+'] / Bs2K.Pphi(qsq, 'f+')
+        f0 = Bs2K.fcn(z, Bs2K.params())['f0'] / Bs2K.Pphi(qsq, 'f0')
+        factor_overall = self.factor_overall(ml, qsq)
+        factor_plus_zero = pk * (4 * ml**2 / qsq) * (MBS**2 - MK**2) * MBS
+        return factor_overall * factor_plus_zero * fp * f0
+
+    def asymmetry_func(self, qsq, lepton='mu'):
+        if lepton == 'mu':
+            ml = const.MMU
+        elif lepton == 'tau':
+            ml = const.MTAU
+        else:
+            print "Only the 'mu' or 'tau' lepton is allowed."
+            return
+        z = Bs2K.q_sq2z(qsq)
+        pk = Bs2K.q_sq2PK(qsq)
+        MBS = const.MBS
+        MK = const.MK
+        fp = Bs2K.fcn(z, Bs2K.params())['f+'] / Bs2K.Pphi(qsq, 'f+')
+        f0 = Bs2K.fcn(z, Bs2K.params())['f0'] / Bs2K.Pphi(qsq, 'f0')
+        factor_overall = self.factor_overall(ml, qsq)
+        factor_plus_zero = pk * (3.0 / 4.0 * ml**2 / qsq) * (MBS**2 - MK**2) * MBS
+        return factor_overall * factor_plus_zero * fp * f0 / const.GEV_TO_PS
+
+    def asymmetry(self, lepton='mu', num_points=500):
+        if lepton == 'mu':
+            ml = const.MMU
+        elif lepton == 'tau':
+            ml = const.MTAU
+        else:
+            print "Only the 'mu' or 'tau' lepton is allowed."
+            return
+        start = ml**2
+        end = const.TMINUS
+        a = start
+        b = end
+        N = num_points
+        x = np.linspace(a+(b-a)/(2*N), b-(b-a)/(2*N), N)
+        afb = self.asymmetry_func(x, lepton)
+        return [[qsq, gv.mean(res), gv.sdev(res)]  for qsq, res in zip(x, afb)]
+
+    def int_asymmetry(self, lepton='mu', err=10**(-5)):
+        if lepton == 'mu':
+            ml = const.MMU
+        elif lepton == 'tau':
+            ml = const.MTAU
+        else:
+            print "Only the 'mu' or 'tau' lepton is allowed."
+            return
+        num_points = 100
+        res_err = 1.0
+        diff = 1.0
+        res = gv.gvar(0.0, 0.0)
+        while diff > err:
+            res_old = res
+            res = self.integrate(self.asymmetry_func, lepton, ml**2,
+                                 const.TMINUS, num_points)
+            num_points *= 2
+            diff = abs(gv.mean(res - res_old))
+            #print num_points, res, diff
+        return gv.mean(res), gv.sdev(res)
+
+
+
+    def asymmetry_bk(self, lepton='mu', exclusive=True, normalize=True,
                   start=const.MTAU**2, end=const.TMINUS, num_points=500):
         if lepton == 'mu':
             ml = const.MMU
@@ -333,6 +398,24 @@ class Bs2KPheno(object):
         print tabulate(R, headers=['qsq',"R_tau/mu", "err"])
         return
 
+    def print_AFB(self, lepton='mu', exclusive=True):
+        if exclusive:
+            vub = gv.gvar(const.VUB_EX)
+        else:
+            vub = gv.gvar(const.VUB_INC)
+        aFB = self.asymmetry(lepton)
+        aFB = [[qsq, gv.mean(gv.gvar(mean,sdev) * vub**2), gv.sdev(gv.gvar(mean,sdev) * vub**2)] for qsq, mean, sdev in aFB]
+        print "-" * 20
+        print tabulate(aFB, headers=['qsq',"aFB(" + lepton + ")", "err"])
+        return
+
+    def print_AFB_norm(self, lepton='mu', prec=10**(-5)):
+        afb = gv.gvar(self.int_asymmetry(lepton))
+        gamma =  gv.gvar(self.total_decay_rate(lepton, prec))
+        ratio = afb / gamma
+        print ratio
+        return gv.mean(ratio), gv.sdev(ratio)
+
 
 def main():
     pheno = Bs2KPheno()
@@ -376,7 +459,27 @@ def main():
     ##########################
     #print pheno.ratio_diff_decay_rate_fixed_qsq(1.0)
     #print pheno.print_R()
-    print pheno.ratio_total_decay_rate()
+    #print pheno.ratio_total_decay_rate()
+
+    ##########################
+    # AFB
+    ##########################
+    #pheno.print_AFB(lepton='mu', exclusive=True)
+    #pheno.print_AFB(lepton='mu', exclusive=False)
+    #pheno.print_AFB(lepton='tau', exclusive=True)
+    #pheno.print_AFB(lepton='tau', exclusive=False)
+
+    ##########################
+    # int AFB
+    ##########################
+    #print pheno.int_asymmetry('mu')
+    #print pheno.int_asymmetry('tau')
+
+    ##########################
+    # int AFB / G
+    ##########################
+    pheno.print_AFB_norm('mu')
+    pheno.print_AFB_norm('tau')
 
 if __name__ == '__main__':
     main()
