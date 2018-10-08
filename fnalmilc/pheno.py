@@ -19,7 +19,6 @@ class Bs2KPheno(object):
     def factor_overall(self, ml, qsq):
         """
         Return the overall factor for the differential decay rate.
-        The factor ``|p_K|'' is not included.
         """
         GF = const.GF
         MBS = const.MBS
@@ -36,6 +35,27 @@ class Bs2KPheno(object):
         MK = const.MK
         return 3.0 * ml**2 / 8.0 / qsq * (MBS**2 - MK**2)**2
 
+    def factor_p_overall(self, ml, qsq):
+        """
+        """
+        GF = const.GF
+        MBS = const.MBS
+        PK = Bs2K.q_sq2PK(qsq)
+        return GF**2 / (24*np.pi**3) * PK**3 * (1 - ml**2 / qsq)**2
+
+    def factor_p_pol_fplus(self, ml, qsq):
+        """
+        """
+        PK = Bs2K.q_sq2PK(qsq)
+        return 0.5 * ml**2 / qsq
+
+    def factor_p_pol_fzero(self, ml, qsq):
+        """
+        """
+        MBS = const.MBS
+        MK = const.MK
+        PK = Bs2K.q_sq2PK(qsq)
+        return 3.0 / 8.0 * ml**2 / qsq * (MBS**2 - MK**2)**2 / MBS**2 / PK**2
 
     def diff_decay_rate_func(self, qsq, lepton='mu'):
         if lepton == 'mu':
@@ -306,7 +326,6 @@ class Bs2KPheno(object):
         return gv.mean(res), gv.sdev(res)
 
 
-
     def asymmetry_bk(self, lepton='mu', exclusive=True, normalize=True,
                   start=const.MTAU**2, end=const.TMINUS, num_points=500):
         if lepton == 'mu':
@@ -386,6 +405,46 @@ class Bs2KPheno(object):
         else:
             return res
 
+
+    def polarized_func(self, qsq, lepton='mu'):
+        if lepton == 'mu':
+            ml = const.MMU
+        elif lepton == 'tau':
+            ml = const.MTAU
+        else:
+            print "Only the 'mu' or 'tau' lepton is allowed."
+            return
+        z = Bs2K.q_sq2z(qsq)
+        fp = Bs2K.fcn(z, Bs2K.params())['f+'] / Bs2K.Pphi(qsq, 'f+')
+        f0 = Bs2K.fcn(z, Bs2K.params())['f0'] / Bs2K.Pphi(qsq, 'f0')
+        factor_p_pol_fplus = self.factor_p_pol_fplus(ml, qsq)
+        factor_p_pol_fzero = self.factor_p_pol_fzero(ml, qsq)
+        num = fp**2 - (factor_p_pol_fplus * fp**2 + factor_p_pol_fzero * f0**2)
+        den = fp**2 + (factor_p_pol_fplus * fp**2 + factor_p_pol_fzero * f0**2)
+#        print "qsq", qsq
+#        print 'fp', fp, f0
+#        print 'fact', factor_p_pol_fplus, factor_p_pol_fzero
+#        print 'res', num, den, num/den
+        return num / den
+
+    def polarized(self, lepton='mu', num_points=500):
+        if lepton == 'mu':
+            ml = const.MMU
+        elif lepton == 'tau':
+            ml = const.MTAU
+        else:
+            print "Only the 'mu' or 'tau' lepton is allowed."
+            return
+        start = ml**2
+        end = const.TMINUS
+        a = start
+        b = end
+        N = num_points
+        x = np.linspace(a+(b-a)/(2*N), b-(b-a)/(2*N), N)
+        apol = self.polarized_func(x, lepton)
+        return [[qsq, gv.mean(res), gv.sdev(res)]  for qsq, res in zip(x, apol)]
+
+
     def print_dGdqsq(self, lepton='mu'):
         dGdqsq = self.diff_decay_rate(lepton)
         print "-" * 20
@@ -409,12 +468,24 @@ class Bs2KPheno(object):
         print tabulate(aFB, headers=['qsq',"aFB(" + lepton + ")", "err"])
         return
 
+    def print_AFB_NoVub(self, lepton='mu'):
+        aFB = self.asymmetry(lepton)
+        print "-" * 20
+        print tabulate(aFB, headers=['qsq',"aFB/Vub**2(" + lepton + ")", "err"])
+        return
+
     def print_AFB_norm(self, lepton='mu', prec=10**(-5)):
         afb = gv.gvar(self.int_asymmetry(lepton))
         gamma =  gv.gvar(self.total_decay_rate(lepton, prec))
         ratio = afb / gamma
         print ratio
         return gv.mean(ratio), gv.sdev(ratio)
+
+    def print_Apol(self, lepton='tau'):
+        apol = self.polarized(lepton)
+        print "-" * 20
+        print tabulate(apol, headers=['qsq',"Apol(" + lepton + ")", "err"])
+        return
 
 
 def main():
@@ -470,6 +541,12 @@ def main():
     #pheno.print_AFB(lepton='tau', exclusive=False)
 
     ##########################
+    # AFB/Vub^2
+    ##########################
+    pheno.print_AFB_NoVub(lepton='mu')
+    pheno.print_AFB_NoVub(lepton='tau')
+
+    ##########################
     # int AFB
     ##########################
     #print pheno.int_asymmetry('mu')
@@ -478,8 +555,15 @@ def main():
     ##########################
     # int AFB / G
     ##########################
-    pheno.print_AFB_norm('mu')
-    pheno.print_AFB_norm('tau')
+    #pheno.print_AFB_norm('mu')
+    #pheno.print_AFB_norm('tau')
+
+    ##########################
+    # A_pol
+    ##########################
+    #pheno.print_Apol('mu')
+    #pheno.print_Apol('tau')
+
 
 if __name__ == '__main__':
     main()
