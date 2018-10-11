@@ -2,6 +2,7 @@
 This is a code to reconstruct the semileptonic form factors.
 """
 
+import abc
 import numpy as np
 import gvar as gv
 import argparse
@@ -9,6 +10,281 @@ from tabulate import tabulate
 import constants.constants_bs2k_2018 as const
 import constants.constants_b2d_2012 as const_b2d
 import constants.constants_bs2ds_2012 as const_bs2ds
+
+class FormFactors(object):
+
+    __metaclass__  = abc.ABCMeta
+
+    def __init__(self, MB, MP, MB_cut, MP_cut, nz, dir_str, tail_str):
+        self.MB = MB
+        self.MP = MP
+        self.MB_cut = MB_cut
+        self.MP_cut = MP_cut
+        self.nz = nz
+        self.t_cut = (MB_cut + MP_cut)**2
+        self.t_minus = (MB - MP)**2
+        self.dir_str = dir_str # these are ugly ...
+        self.tail_str = tail_str
+
+    def w_to_qsq(self, w):
+        """Convert from w to q^2."""
+        MB = self.MB
+        MP = self.MP
+        return MB**2 + MP**2 - 2 * w * MB * MP
+
+    def qsq_to_w(self, qsq):
+        """Convert from q^2 to w."""
+        MB = self.MB
+        MP = self.MP
+        return (MB**2 + MP**2 - qsq) / (2 * MB * MP)
+
+    def qsq_to_z(self, qsq, t0=None):
+        """Convert from q^2 to z."""
+        t_cut = self.t_cut
+        t_minus = self.t_minus
+        if t0 == None:
+            t0 = t_cut - (t_cut * (t_cut - t_minus))**0.5
+        part1 = (t_cut - qsq)**0.5
+        part2 = (t_cut - t0)**0.5
+        return (part1 - part2) / (part1 + part2)
+
+    def z_to_qsq(self, z, t0=None):
+        """Convert from z to q^2."""
+        t_cut = self.t_cut
+        t_minus = self.t_minus
+        if t0 == None:
+            t0 = t_cut - (t_cut * (t_cut - t_minus))**0.5
+        part1 = (1 + z) / (1 - z)
+        part2 = 1.0 - t0 / t_cut
+        return t_cut * (1.0 - part1**2 * part2)
+
+    def qsq_to_e(self, qsq):
+        """Convert from q^2 to E."""
+        MB = self.MB
+        MP = self.MP
+        return (MB**2 + MP**2 - qsq) / (2 * MB)
+
+    def e_to_qsq(self, E):
+        """Convert from E to q^2."""
+        MB = self.MB
+        MP = self.MP
+        return MB**2 + MP**2 - 2 * MB * E
+
+    def w_to_z(self, w, t0=None):
+        """Convert from w to z."""
+        qsq = self.w_to_qsq(w)
+        return self.qsq_to_z(qsq, t0)
+
+    def z_to_w(self, w, t0=None):
+        """Convert from z to w."""
+        qsq = self.z_to_qsq(z, t0)
+        return self.qsq_to_w(qsq)
+
+    def w_to_e(self, w):
+        """Convert from w to E."""
+        return w * self.MP
+
+    def e_to_w(self, e):
+        """Convert from E to w."""
+        return e / self.MP
+
+    def z_to_e(self, z, t0=None):
+        """Convert from z to E."""
+        qsq = self.z_to_qsq(z, t0)
+        return self.qsq_to_e(qsq)
+
+    def e_to_z(self, e, t0=None):
+        """Convert from E to z."""
+        qsq = self.e_to_qsq(e)
+        return self.qsq_to_z(qsq, t0)
+
+    def variable_change(self, x=0.0, var='qsq'):
+        """Get variables 'qsq', 'w', and 'z'."""
+        if var == 'qsq':
+            return x, self.qsq_to_w(x), self.qsq_to_z(x)
+        if var == 'w':
+            qsq = self.w_to_qsq(x)
+            return qsq, x, self.qsq_to_z(qsq)
+        if var == 'z':
+            qsq = self.z_to_qsq(x)
+            return qsq, self.qsq_to_w(qsq), x
+        print "Only 'qsq', 'w', and 'z' variables are supported."
+        return
+
+    @abc.abstractmethod
+    def pole(self, qsq, form='f+'):
+        """The Blaschke pole factors."""
+        return None
+
+    @abc.abstractmethod
+    def phi(self, z, form='f+'):
+        return None
+
+    #@abc.abstractmethod
+    #def params(self, dir_str, tail_str):
+    #    """Read in fit results."""
+    #    return
+
+
+    def params(self):
+        """Read in fit results."""
+        dir_str = self.dir_str
+        tail_str = self.tail_str
+        p = gv.BufferDict()
+        pmean = np.loadtxt(dir_str + "/pmean" + tail_str)
+        p0mean = np.loadtxt(dir_str + "/p0mean" + tail_str)
+        perr = np.loadtxt(dir_str + "/pmean_err" + tail_str)
+        p0err = np.loadtxt(dir_str + "/p0mean_err" + tail_str)
+        pcorr = np.loadtxt(dir_str + "/corr" + tail_str)
+        pcov = np.loadtxt(dir_str + "/cov" + tail_str)
+        nz = len(pmean)
+        if nz != self.nz:
+            print "The number of the input parameter should be equal to nz."
+            return
+        pmean = np.append(pmean, p0mean)
+        d_mat = np.sqrt(np.diag(np.diag(pcov)))
+        d_mat_inv = np.linalg.inv(d_mat)
+        correlation_mat = np.matmul(d_mat_inv, np.matmul(pcov, d_mat_inv))
+        #print correlationMat - pcorr
+        x = gv.gvar(pmean, pcov)
+        p['b'] = x[:nz]
+        p['b0'] = x[nz:]
+        #print gv.evalcov(p)
+        return p
+
+    @abc.abstractmethod
+    def fcn(self, z, p):
+        """Functional form of the form factors."""
+        return
+
+    def form_factor_fixed_x(self, form='f+', x=0.0,
+              var='qsq', withpole=True, gvar=False):
+        """
+        Construct the f+ or f0 form factors at a fixed x value.
+        """
+        if form not in ('f+', 'f0'):
+            print "Only f+ and f0 form factors are provided."
+            return
+
+        qsq, w, z = self.variable_change(x, var)
+
+        p = self.params()
+        formfactor = self.fcn(z, p)[form]
+        formfactor /= self.phi(z, form)
+        if withpole:
+            formfactor /= self.pole(qsq, form)
+        if gvar:
+            return x, formfactor
+        return x, gv.mean(formfactor), gv.sdev(formfactor)
+
+    def form_factor(self, form='f+', start=0, end=const.TMINUS, num_points=500,
+              var='qsq', withpole=True, gvar=False):
+        """
+        Construct the f+ or f0 form factors.
+        """
+        if form not in ('f+', 'f0'):
+            print "Only f+ and f0 form factors are provided."
+            return
+
+        step = (end - start) / num_points
+        xlst = np.arange(start, end + step, step)
+        return [
+            self.form_factor_fixed_x(
+                form, x, var,
+                withpole, gvar) for x in xlst
+        ]
+
+class Bs2K(FormFactors):
+    """
+    Reconstruct Bs -> K form factors class.
+    """
+
+    def pole(self, qsq, form='f+'):
+        """The Blaschke pole factors."""
+        mb_star = const.MBSTAR
+        mb_star_0 = const.MBSTAR0
+        if form == 'f+':
+            return 1.0 - qsq / mb_star**2
+        elif form == 'f0':
+            return 1.0 - qsq / mb_star_0**2
+        else:
+            return 1.0
+
+    def phi(self, z, form='f+'):
+        if form == 'f+':
+            return 1.0
+        elif form == 'f0':
+            return 1.0
+        else:
+            return 1.0
+
+    def fcn(self, z, p):
+        """Functional form of the form factors."""
+        nz = self.nz
+        res = {}
+        res['f+'] = sum(p['b'][i] * (z**i - (-1)**(i-nz) * (1.0*i/nz) * z**nz) for i in range(nz))
+        res['f0'] = sum(p['b0'][i] * z**i for i in range(nz))
+        return res
+
+#    def params(self, dir_str='./results/', tail_str='.txt'):
+#        """Read in fit results."""
+#        p = gv.BufferDict()
+#        pmean = np.loadtxt(dir_str + "/pmean" + tail_str)
+#        p0mean = np.loadtxt(dir_str + "/p0mean" + tail_str)
+#        perr = np.loadtxt(dir_str + "/pmean_err" + tail_str)
+#        p0err = np.loadtxt(dir_str + "/p0mean_err" + tail_str)
+#        pcorr = np.loadtxt(dir_str + "/corr" + tail_str)
+#        pcov = np.loadtxt(dir_str + "/cov" + tail_str)
+#        nz = len(pmean)
+#        if nz != self.nz:
+#            print "The number of the input parameter should be equal to nz."
+#            return
+#        pmean = np.append(pmean, p0mean)
+#        d_mat = np.sqrt(np.diag(np.diag(pcov)))
+#        d_mat_inv = np.linalg.inv(d_mat)
+#        correlation_mat = np.matmul(d_mat_inv, np.matmul(pcov, d_mat_inv))
+#        #print correlationMat - pcorr
+#        x = gv.gvar(pmean, pcov)
+#        p['b'] = x[:nz]
+#        p['b0'] = x[nz:]
+#        #print gv.evalcov(p)
+#        return p
+
+def Bs2Ds(FormFactors):
+    """
+    Reconstruct B -> D form factors class.
+    """
+
+    def pole(self, qsq, form='f+'):
+        """The Blaschke pole factors."""
+        if form == 'f+':
+            return 1.0
+        elif form == 'f0':
+            return 1.0
+        else:
+            return 1.0
+
+    def phi(self, z, form='f+'):
+        r = self.MP / self.MB
+        phi_plus = const_b2d.PHI_PLUS
+        phi_0 = const_b2d.PHI0
+        if form == 'f+':
+            res = (1+z)**2 * (1-z)**0.5 / ((1+r) * (1-z) + 2 * r**0.5 * (1+z))**5
+            res /= phi_plus
+        elif form == 'f0':
+            res = (1+z) * (1-z)**1.5 / ((1+r)*(1-z) + 2 * r**0.5 * (1+z))**4
+            res /= phi_0
+        return res
+
+    def fcn(self, z, p):
+        """Functional form of the form factors."""
+        nz = self.nz
+        res = {}
+        res['f+'] = sum(p['b'][i] * z**i for i in range(nz))
+        res['f0'] = sum(p['b0'][i] * z**i for i in range(nz))
+        return res
+
+
 
 class Bs2DsFormFactors(object):
     """
@@ -825,6 +1101,17 @@ def main():
     formfactors_b2d2015 = Bs2DsFormFactors(MB, MD, nz)
 
     formfactors_bs2k = Bs2KFormFactors()
+
+    ff_bs2k = Bs2K(const.MBS, const.MK, const.MB, const.MPION, 4, '.results/',
+                  '.txt')
+    fp_bs2k_bb = formfactors_bs2k.form_factor('f+', qmin, const_b2d.TMINUS, 5,
+                                           'qsq', withpole=True, gvar=False)
+    fp_bs2k_bbw = ff_bs2k.form_factor('f+', qmin, const_b2d.TMINUS, 5,
+                                           'qsq', withpole=True, gvar=False)
+    print formfactors_bs2k.z2q_sq(0.1)
+    print ff_bs2k.z_to_qsq(0.1)
+    print tabulate(fp_bs2k_bb, headers=['qsq',"f+", "err"])
+    print tabulate(fp_bs2k_bbw, headers=['qsq',"f+", "err"])
 
     decay = 'B2D'
     qmin = 0
