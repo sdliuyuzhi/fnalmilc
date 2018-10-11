@@ -15,6 +15,7 @@ class Bs2DsFormFactors(object):
     Reconstruct Bs -> K, B -> D and Bs -> Ds form factors class.
     """
 
+
     def __init__(self, MB, MD, nz):
         self.MB = MB
         self.MD = MD
@@ -39,9 +40,7 @@ class Bs2DsFormFactors(object):
         """
 
     def q_sq2z(self, q_sq):
-        """
-        Convert from q_sq to z.
-        """
+        """Convert from q_sq to z."""
         w = self.q_sq2w(q_sq)
         return self.w2z(w)
 
@@ -66,14 +65,14 @@ class Bs2DsFormFactors(object):
         f0 outer function.
         """
         r = self.r
-        return (1 + z) * (1 - z)**1.5 / ((1 + r) * (1 - z) + 2*np.sqrt(r)*(1 + z))**4
+        return (1+z) * (1-z)**1.5 / ((1+r)*(1-z) + 2 * r**0.5 * (1+z))**4
 
     def phi_fp(self, z):
         """
         f+ outer function.
         """
         r = self.r
-        return (1 + z)**2 * (1 - z)**0.5 / ((1 + r) * (1 - z) + 2*np.sqrt(r)*(1 + z))**5
+        return (1+z)**2 * (1-z)**0.5 / ((1+r) * (1-z) + 2 * r**0.5 * (1+z))**5
 
 
     def Phi(self, z, form='f+'):
@@ -118,24 +117,18 @@ class Bs2DsFormFactors(object):
 
     def fcn_ratio(self, z, p, nz):
         """
-        Functional form of the form factors.
+        Functional form of the form factor ratios.
         """
         nz = self.nz
-        ans = {}
-        ans['f+'] = sum(p['b'][i] * z**i for i in range(nz))
-        ans['f0'] = sum(p['b0'][i] * z**i for i in range(nz))
-
+        ans = self.fcn(z, p, nz)
         return ans['f+'] / ans['f0']
 
     def fcn_product(self, z, p, nz):
         """
-        Functional form of the form factors.
+        Functional form of the form factor product.
         """
         nz = self.nz
-        ans = {}
-        ans['f+'] = sum(p['b'][i] * z**i for i in range(nz))
-        ans['f0'] = sum(p['b0'][i] * z**i for i in range(nz))
-
+        ans = self.fcn(z, p, nz)
         return ans['f+'] * ans['f0']
 
     def params(self, decay='Bs2Ds'):
@@ -173,43 +166,22 @@ class Bs2DsFormFactors(object):
         #print gv.evalcov(p)
         return p
 
-    def form_factor_fixed_w(self, form='f+', w=0.0,
-              var='w', decay='Bs2Ds', withpole=False, nz=3, gvar=False):
+    def variable_change(self, x=0.0, var='qsq'):
+        """Get variables 'qsq', 'w', and 'z'.
         """
-        Construct the f+ or f0 form factors at a fixed q^2 value.
-        """
-        if form == 'f0':
-            PHI = const_b2d.PHI0
-        elif form == 'f+':
-            PHI = const_b2d.PHI_PLUS
-        else:
-            print "Only f+ and f0 form factors are provided."
-            return
-
-        qsq = self.w2q_sq(w)
-        z = self.q_sq2z(qsq)
-        formfactor = self.fcn(z, self.params(decay), nz)[form] / self.Pphi(qsq, form)
-        formfactor /= PHI
         if var == 'qsq':
-            if gvar:
-                res = [qsq, formfactor]
-            else:
-                res = [qsq, gv.mean(formfactor), gv.sdev(formfactor)]
-        elif var == 'z':
-            if gvar:
-                res = [z, formfactor]
-            else:
-                res = [z, gv.mean(formfactor), gv.sdev(formfactor)]
-        elif var == 'w':
-            if gvar:
-                res = [w, formfactor]
-            else:
-                res = [w, gv.mean(formfactor), gv.sdev(formfactor)]
-        else:
-            print "The parameter 'var' can only be 'qsq', 'w' or 'z'."
-        return res
+            return x, self.q_sq2w(x), self.q_sq2z(x)
+        if var == 'w':
+            qsq = self.w2q_sq(x)
+            return qsq, x, self.q_sq2z(qsq)
+        if var == 'z':
+            qsq = self.z2q_sq(x)
+            return qsq, self.q_sq2w(qsq), x
+        print "Only 'qsq', 'w', and 'z' variables are supported."
+        return
 
-    def form_factor_fixed_qsq(self, form='f+', qsq=0.0,
+
+    def form_factor_fixed_x(self, form='f+', x=0.0,
               var='qsq', decay='Bs2Ds', withpole=False, nz=3, gvar=False):
         """
         Construct the f+ or f0 form factors at a fixed q^2 value.
@@ -222,28 +194,14 @@ class Bs2DsFormFactors(object):
             print "Only f+ and f0 form factors are provided."
             return
 
-        z = self.q_sq2z(qsq)
-        formfactor = self.fcn(z, self.params(decay), nz)[form] / self.Pphi(qsq, form)
+        qsq, w, z = self.variable_change(x, var)
+
+        formfactor = self.fcn(z, self.params(decay), nz)[form]
+        formfactor /= self.Pphi(qsq, form)
         formfactor /= PHI
-        if var == 'qsq':
-            if gvar:
-                res = [qsq, formfactor]
-            else:
-                res = [qsq, gv.mean(formfactor), gv.sdev(formfactor)]
-        elif var == 'z':
-            if gvar:
-                res = [z, formfactor]
-            else:
-                res = [z, gv.mean(formfactor), gv.sdev(formfactor)]
-        elif var == 'w':
-            w = self.q_sq2w(qsq)
-            if gvar:
-                res = [w, formfactor]
-            else:
-                res = [w, gv.mean(formfactor), gv.sdev(formfactor)]
-        else:
-            print "The parameter 'var' can only be 'qsq', 'w' or 'z'."
-        return res
+        if gvar:
+            return x, formfactor
+        return x, gv.mean(formfactor), gv.sdev(formfactor)
 
 
     def form_factor(self, form='f+', start=0, end=const.TMINUS, num_points=500,
@@ -251,32 +209,18 @@ class Bs2DsFormFactors(object):
         """
         Construct the f+ or f0 form factors.
         """
-        if form == 'f0':
-            PHI = const_b2d.PHI0
-        elif form == 'f+':
-            PHI = const_b2d.PHI_PLUS
-        else:
+        if form not in ('f+', 'f0'):
             print "Only f+ and f0 form factors are provided."
             return
 
-        res = []
-        #if var == 'w':
-        #    start = self.q_sq2w(start)
-        #    end = self.q_sq2w(end)
-        #elif var == 'z':
-        #    start = self.
+        step = (end - start) / num_points
+        xlst = np.arange(start, end + step, step)
+        return [
+            self.form_factor_fixed_x(
+                form, x, var, decay,
+                withpole, nz, gvar) for x in xlst
+        ]
 
-        if var == 'qsq':
-            step = (end - start) / num_points
-            for qsq in np.arange(start, end + step, step):
-                res.append(self.form_factor_fixed_qsq(form, qsq, var, decay,
-                                                  withpole, nz, gvar))
-        elif var == 'w':
-            step = (end - start) / num_points
-            for w in np.arange(start, end + step, step):
-                res.append(self.form_factor_fixed_w(form, w, var, decay,
-                                                  withpole, nz, gvar))
-        return res
 
 class Bs2KFormFactors(object):
     """
@@ -287,10 +231,12 @@ class Bs2KFormFactors(object):
         """
         The Blaschke pole factors (and the outer function).
         """
+        MBSTAR = const.MBSTAR
+        MBSTAR0 = const.MBSTAR0
         if form == 'f+':
-            return 1.0 - q_sq / const.MBSTAR**2
+            return 1.0 - q_sq / MBSTAR**2
         elif form == 'f0':
-            return 1.0 - q_sq / const.MBSTAR0**2
+            return 1.0 - q_sq / MBSTAR0**2
         else:
             return 1.0
 
@@ -299,19 +245,25 @@ class Bs2KFormFactors(object):
         """
         Convert from E to q^2.
         """
-        return (const.MBS**2 + const.MK**2 - 2 * const.MBS * EK )
+        MBS = const.MBS
+        MK = const.MK
+        return MBS**2 + MK**2 - 2*MBS*EK
 
     def q_sq2E(self, q_sq):
         """
         Convert from q^2 to E.
         """
-        return (const.MBS**2 + const.MK**2 - q_sq) / (2 * const.MBS)
+        MBS = const.MBS
+        MK = const.MK
+        return (MBS**2 + MK**2 - q_sq) / (2 * MBS)
 
     def q_sq2PK(self, q_sq):
         """
         Convert from q^2 to the kaon momentum P_K.
         """
-        return (self.q_sq2E(q_sq)**2 - const.MK**2)**0.5
+        E = self.q_sq2E(q_sq)
+        MK = const.MK
+        return (E**2 - MK**2)**0.5
 
 #    def z2Er1(self, z):
 #        """
@@ -321,24 +273,26 @@ class Bs2KFormFactors(object):
 #            const.T0)*((1 + z) / (1 - z))**2 ) / (2 * const.MB)
 #        return E * const.GEV_TO_R1
 
-#    def z2q_sq(self, z, t0 = None):
-#        """
-#        Convert from z to q^2.
-#        """
-#        if t0 == None:
-#            t0 = const.T0
-#        temp1 = 1.0 - t0 / const.TCUT
-#        temp2 = (1 + z) / (1 - z)
-#        return const.TCUT * (1.0 - temp2**2 * temp1)
+    def z2q_sq(self, z, t0 = None):
+        """
+        Convert from z to q^2.
+        """
+        TCUT = const.TCUT
+        if t0 == None:
+            t0 = const.T0
+        part1 = (1 + z) / (1 - z)
+        part2 = 1.0 - t0 / TCUT
+        return TCUT * (1.0 - part1**2 * part2)
 
-    def q_sq2z(self, q_sq, t0 = None):
+    def q_sq2z(self, q_sq, t0=None):
         """
         Convert from q^2 to z.
         """
+        TCUT = const.TCUT
         if t0 == None:
             t0 = const.T0
-        part1 = np.sqrt(const.TCUT - q_sq)
-        part2 = np.sqrt(const.TCUT - t0)
+        part1 = (TCUT - q_sq)**0.5
+        part2 = (TCUT - t0)**0.5
         return (part1 - part2) / (part1 + part2)
 
     def q_sq2w(self, q_sq):
@@ -355,7 +309,7 @@ class Bs2KFormFactors(object):
         """
         MBS = const.MBS
         MK = const.MK
-        return MBS**2 + MK**2 - 2 * w * MBS * MK
+        return MBS**2 + MK**2 - 2*w*MBS*MK
 
 
     def fcn(self, z, p, nz=4):
@@ -363,7 +317,7 @@ class Bs2KFormFactors(object):
         BCL parametrization functional form of the form factors.
         """
         ans = {}
-        ans['f+'] = sum(p['b'][i] * (z**i - (-1)**(i - nz) * (1.0*i / nz) * z**nz) for i in range(nz))
+        ans['f+'] = sum(p['b'][i] * (z**i - (-1)**(i-nz) * (1.0*i/nz) * z**nz) for i in range(nz))
         ans['f0'] = sum(p['b0'][i] * z**i for i in range(nz))
         return ans
 
@@ -371,18 +325,14 @@ class Bs2KFormFactors(object):
         """
         BCL parametrization functional form of the form factors.
         """
-        ans = {}
-        ans['f+'] = sum(p['b'][i] * (z**i - (-1)**(i - nz) * (1.0*i / nz) * z**nz) for i in range(nz))
-        ans['f0'] = sum(p['b0'][i] * z**i for i in range(nz))
+        ans = self.fcn(z, p, nz)
         return ans['f+'] / ans['f0']
 
     def fcn_product(self, z, p, nz=4):
         """
         BCL parametrization functional form of the form factors.
         """
-        ans = {}
-        ans['f+'] = sum(p['b'][i] * (z**i - (-1)**(i - nz) * (1.0*i / nz) * z**nz) for i in range(nz))
-        ans['f0'] = sum(p['b0'][i] * z**i for i in range(nz))
+        ans = self.fcn(z, p, nz)
         return ans['f+'] * ans['f0']
 
 
@@ -398,9 +348,9 @@ class Bs2KFormFactors(object):
         pcov = np.loadtxt(dir_str + "cov.txt")
         nz = len(pmean)
         pmean = np.append(pmean, p0mean)
-        D = np.sqrt(np.diag(np.diag(pcov)))
-        DInv = np.linalg.inv(D)
-        correlationMat = np.matmul(DInv, np.matmul(pcov,DInv))
+        d_mat = np.sqrt(np.diag(np.diag(pcov)))
+        d_mat_inv = np.linalg.inv(d_mat)
+        correlation_mat = np.matmul(d_mat_inv, np.matmul(pcov, d_mat_inv))
         #print correlationMat - pcorr
         x = gv.gvar(pmean, pcov)
         p['b'] = x[:nz]
@@ -408,8 +358,23 @@ class Bs2KFormFactors(object):
         #print gv.evalcov(p)
         return p
 
-    def form_factor_fixed_w(self, form='f+', w=0.0,
-              var='w', withpole=True, nz=4, gvar=True):
+    def variable_change(self, x=0.0, var='qsq'):
+        """Get variables 'qsq', 'w', and 'z'.
+        """
+        if var == 'qsq':
+            return x, self.q_sq2w(x), self.q_sq2z(x)
+        if var == 'w':
+            qsq = self.w2q_sq(x)
+            return qsq, x, self.q_sq2z(qsq)
+        if var == 'z':
+            qsq = self.z2q_sq(x)
+            return qsq, self.q_sq2w(qsq), x
+        print "Only 'qsq', 'w', and 'z' variables are supported."
+        return
+
+
+    def form_factor_fixed_x(self, form='f+', x=0.0,
+              var='qsq', withpole=True, nz=4, gvar=True):
         """
         Construct the f+ or f0 form factors at a fixed w value.
         """
@@ -417,30 +382,17 @@ class Bs2KFormFactors(object):
             print "Only f+ and f0 form factors are provided."
             return
 
-        qsq = self.w2q_sq(w)
-        z = self.q_sq2z(qsq)
+        qsq, w, z = self.variable_change(x, var)
+
         if withpole:
             formfactor = self.fcn(z, self.params())[form] / self.Pphi(qsq, form)
         else:
             formfactor = self.fcn(z, self.params())[form]
-        if var == 'qsq':
-            if gvar:
-                res = [qsq, formfactor]
-            else:
-                res = [qsq, gv.mean(formfactor), gv.sdev(formfactor)]
-        elif var == 'z':
-            if gvar:
-                res = [qsq, formfactor]
-            else:
-                res = [z, gv.mean(formfactor), gv.sdev(formfactor)]
-        elif var == 'w':
-            if gvar:
-                res = [w, formfactor]
-            else:
-                res = [w, gv.mean(formfactor), gv.sdev(formfactor)]
-        else:
-            print "The parameter 'var' can only be 'qsq', 'w' or 'z'."
-        return res
+
+        if gvar:
+            return x, formfactor
+        return x, gv.mean(formfactor), gv.sdev(formfactor)
+
 
 
     def form_factor_fixed_qsq(self, form='f+', qsq=0.0,
@@ -500,22 +452,6 @@ class Bs2KFormFactors(object):
         product = f1 * f2
         ratio = f1 / f2
         return product, ratio
-#        if var == 'qsq':
-#            if gvar:
-#                res1 = [qsq, product]
-#                res2 = [qsq, ratio]
-#            else:
-#                res1 = [qsq, gv.mean(product), gv.sdev(product)]
-#                res2 = [qsq, gv.mean(ratio), gv.sdev(ratio)]
-#        elif var == 'z':
-#            if gvar:
-#                res1 = [qsq, product]
-#                res2 = [qsq, ratio]
-#            else:
-#                res1 = [z, gv.mean(product), gv.sdev(product)]
-#                res2 = [z, gv.mean(ratio), gv.sdev(ratio)]
-#        return res1, res2
-
 
 
     def form_factor(self, form='f+', start=0, end=const.TMINUS, num_points=500,
@@ -527,23 +463,14 @@ class Bs2KFormFactors(object):
             print "Only f+ and f0 form factors are provided."
             return
 
-        res = []
-        if var == 'qsq':
-            step = (end - start) / num_points
-            for qsq in np.arange(start, end + step, step):
-                res.append(self.form_factor_fixed_qsq(form, qsq, var, withpole, nz,
-                                                  gvar))
-        elif var == 'w':
-            step = (end - start) / num_points
-            for w in np.arange(start, end + step, step):
-                res.append(self.form_factor_fixed_w(form, w, var, withpole, nz,
-                                                  gvar))
-        return res
+        step = (end - start) / num_points
+        xlst = np.arange(start, end + step, step)
+        return [
+            self.form_factor_fixed_x(
+                form, x, var,
+                withpole, nz, gvar) for x in xlst
+        ]
 
-#Class Bs2KPheno(object):
-#    """
-#    Construct pheno observables from Bs -> k l nu form factors class.
-#    """
 
     def factor_overall(self, ml, qsq):
         """
@@ -903,8 +830,8 @@ def main():
     qmin = 0
     fp_b2d = formfactors_b2d.form_factor('f+', qmin, const_b2d.TMINUS, 500, 'qsq', decay)
     f0_b2d = formfactors_b2d.form_factor('f0', qmin, const_b2d.TMINUS, 500, 'qsq', decay)
-    print 'b2d', formfactors_b2d.form_factor_fixed_qsq('f0', const_b2d.MK**2, 'qsq', 'B2D')
-    print 'bs2ds', formfactors_bs2ds.form_factor_fixed_qsq('f0',
+    print 'b2d', formfactors_b2d.form_factor_fixed_x('f0', const_b2d.MK**2, 'qsq', 'B2D')
+    print 'bs2ds', formfactors_bs2ds.form_factor_fixed_x('f0',
                                                            const_bs2ds.MPION**2,
                                                            'qsq', 'Bs2Ds')
 
