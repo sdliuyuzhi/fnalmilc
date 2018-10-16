@@ -15,7 +15,7 @@ class FormFactors(object):
 
     __metaclass__  = abc.ABCMeta
 
-    def __init__(self, MB, MP, MB_cut, MP_cut, nz, dir_str, tail_str):
+    def __init__(self, MB, MP, MB_cut, MP_cut, t0, nz, dir_str, tail_str) :
         self.MB = MB
         self.MP = MP
         self.MB_cut = MB_cut
@@ -23,6 +23,7 @@ class FormFactors(object):
         self.nz = nz
         self.t_cut = (MB_cut + MP_cut)**2
         self.t_minus = (MB - MP)**2
+        self.t0 = t0
         self.dir_str = dir_str # these are ugly ...
         self.tail_str = tail_str
 
@@ -38,20 +39,22 @@ class FormFactors(object):
         MP = self.MP
         return (MB**2 + MP**2 - qsq) / (2 * MB * MP)
 
-    def qsq_to_z(self, qsq, t0=None):
+    def qsq_to_z(self, qsq):
         """Convert from q^2 to z."""
         t_cut = self.t_cut
         t_minus = self.t_minus
+        t0 = self.t0
         if t0 == None:
             t0 = t_cut - (t_cut * (t_cut - t_minus))**0.5
         part1 = (t_cut - qsq)**0.5
         part2 = (t_cut - t0)**0.5
         return (part1 - part2) / (part1 + part2)
 
-    def z_to_qsq(self, z, t0=None):
+    def z_to_qsq(self, z):
         """Convert from z to q^2."""
         t_cut = self.t_cut
         t_minus = self.t_minus
+        t0 = self.t0
         if t0 == None:
             t0 = t_cut - (t_cut * (t_cut - t_minus))**0.5
         part1 = (1 + z) / (1 - z)
@@ -70,13 +73,15 @@ class FormFactors(object):
         MP = self.MP
         return MB**2 + MP**2 - 2 * MB * E
 
-    def w_to_z(self, w, t0=None):
+    def w_to_z(self, w):
         """Convert from w to z."""
+        t0 = self.t0
         qsq = self.w_to_qsq(w)
         return self.qsq_to_z(qsq, t0)
 
-    def z_to_w(self, w, t0=None):
+    def z_to_w(self, w):
         """Convert from z to w."""
+        t0 = self.t0
         qsq = self.z_to_qsq(z, t0)
         return self.qsq_to_w(qsq)
 
@@ -88,13 +93,15 @@ class FormFactors(object):
         """Convert from E to w."""
         return e / self.MP
 
-    def z_to_e(self, z, t0=None):
+    def z_to_e(self, z):
         """Convert from z to E."""
+        t0 = self.t0
         qsq = self.z_to_qsq(z, t0)
         return self.qsq_to_e(qsq)
 
-    def e_to_z(self, e, t0=None):
+    def e_to_z(self, e):
         """Convert from E to z."""
+        t0 = self.t0
         qsq = self.e_to_qsq(e)
         return self.qsq_to_z(qsq, t0)
 
@@ -197,6 +204,7 @@ class FormFactors(object):
 class Bs2K(FormFactors):
     """
     Reconstruct Bs -> K form factors class.
+    t0 = t_c - \sqrt(t_c*(t_c - t_-)) for Bs2K analysis
     """
 
     def pole(self, qsq, form='f+'):
@@ -226,33 +234,11 @@ class Bs2K(FormFactors):
         res['f0'] = sum(p['b0'][i] * z**i for i in range(nz))
         return res
 
-#    def params(self, dir_str='./results/', tail_str='.txt'):
-#        """Read in fit results."""
-#        p = gv.BufferDict()
-#        pmean = np.loadtxt(dir_str + "/pmean" + tail_str)
-#        p0mean = np.loadtxt(dir_str + "/p0mean" + tail_str)
-#        perr = np.loadtxt(dir_str + "/pmean_err" + tail_str)
-#        p0err = np.loadtxt(dir_str + "/p0mean_err" + tail_str)
-#        pcorr = np.loadtxt(dir_str + "/corr" + tail_str)
-#        pcov = np.loadtxt(dir_str + "/cov" + tail_str)
-#        nz = len(pmean)
-#        if nz != self.nz:
-#            print "The number of the input parameter should be equal to nz."
-#            return
-#        pmean = np.append(pmean, p0mean)
-#        d_mat = np.sqrt(np.diag(np.diag(pcov)))
-#        d_mat_inv = np.linalg.inv(d_mat)
-#        correlation_mat = np.matmul(d_mat_inv, np.matmul(pcov, d_mat_inv))
-#        #print correlationMat - pcorr
-#        x = gv.gvar(pmean, pcov)
-#        p['b'] = x[:nz]
-#        p['b0'] = x[nz:]
-#        #print gv.evalcov(p)
-#        return p
 
-def Bs2Ds(FormFactors):
+class Bs2Ds(FormFactors):
     """
     Reconstruct B -> D form factors class.
+    t0 = t_ for Bs2Ds and B2D analysis
     """
 
     def pole(self, qsq, form='f+'):
@@ -270,10 +256,10 @@ def Bs2Ds(FormFactors):
         phi_0 = const_b2d.PHI0
         if form == 'f+':
             res = (1+z)**2 * (1-z)**0.5 / ((1+r) * (1-z) + 2 * r**0.5 * (1+z))**5
-            res /= phi_plus
+            #res *= phi_plus
         elif form == 'f0':
             res = (1+z) * (1-z)**1.5 / ((1+r)*(1-z) + 2 * r**0.5 * (1+z))**4
-            res /= phi_0
+            #res *= phi_0
         return res
 
     def fcn(self, z, p):
@@ -1102,7 +1088,7 @@ def main():
 
     formfactors_bs2k = Bs2KFormFactors()
 
-    ff_bs2k = Bs2K(const.MBS, const.MK, const.MB, const.MPION, 4, '.results/',
+    ff_bs2k = Bs2K(const.MBS, const.MK, const.MB, const.MPION, None, 4, './results/',
                   '.txt')
     fp_bs2k_bb = formfactors_bs2k.form_factor('f+', qmin, const_b2d.TMINUS, 5,
                                            'qsq', withpole=True, gvar=False)
@@ -1113,10 +1099,28 @@ def main():
     print tabulate(fp_bs2k_bb, headers=['qsq',"f+", "err"])
     print tabulate(fp_bs2k_bbw, headers=['qsq',"f+", "err"])
 
+
+
+
+
     decay = 'B2D'
     qmin = 0
     fp_b2d = formfactors_b2d.form_factor('f+', qmin, const_b2d.TMINUS, 500, 'qsq', decay)
     f0_b2d = formfactors_b2d.form_factor('f0', qmin, const_b2d.TMINUS, 500, 'qsq', decay)
+
+
+    ff_b2d = Bs2Ds(const_b2d.MB, const_b2d.MD, const_b2d.MB, const_b2d.MD,
+                   (const_b2d.MB - const_b2d.MD)**2, 3, './results/', '_b2d_2012.txt')
+    fp_b2d_bb = formfactors_b2d.form_factor('f+', qmin, const_b2d.TMINUS, 5, 'qsq', decay)
+    fp_b2d_bbw = ff_b2d.form_factor('f+', qmin, const_b2d.TMINUS, 5, 'qsq',
+                                    withpole=False, gvar=False)
+    print '*' * 100
+    print tabulate(fp_b2d_bb, headers=['qsq',"f+", "err"])
+    print tabulate(fp_b2d_bbw, headers=['qsq',"f+", "err"])
+
+
+
+
     print 'b2d', formfactors_b2d.form_factor_fixed_x('f0', const_b2d.MK**2, 'qsq', 'B2D')
     print 'bs2ds', formfactors_bs2ds.form_factor_fixed_x('f0',
                                                            const_bs2ds.MPION**2,
