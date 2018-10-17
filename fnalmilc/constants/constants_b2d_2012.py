@@ -8,5 +8,3 @@ T0 = TMINUS
 R = MD / MB
 PHI0 = 0.5299
 PHI_PLUS = 1.1213
-
-

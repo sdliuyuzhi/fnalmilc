@@ -543,8 +543,8 @@ def main():
     ##########################
     # AFB/Vub^2
     ##########################
-    pheno.print_AFB_NoVub(lepton='mu')
-    pheno.print_AFB_NoVub(lepton='tau')
+    #pheno.print_AFB_NoVub(lepton='mu')
+    #pheno.print_AFB_NoVub(lepton='tau')
 
     ##########################
     # int AFB

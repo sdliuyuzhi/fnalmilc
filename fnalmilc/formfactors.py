@@ -101,6 +101,7 @@ class FormFactors(object):
 
     def e_to_z(self, e):
         """Convert from E to z."""
+        j
         t0 = self.t0
         qsq = self.e_to_qsq(e)
         return self.qsq_to_z(qsq, t0)
@@ -126,12 +127,6 @@ class FormFactors(object):
     @abc.abstractmethod
     def phi(self, z, form='f+'):
         return None
-
-    #@abc.abstractmethod
-    #def params(self, dir_str, tail_str):
-    #    """Read in fit results."""
-    #    return
-
 
     def params(self):
         """Read in fit results."""
@@ -164,6 +159,14 @@ class FormFactors(object):
         """Functional form of the form factors."""
         return
 
+    def fcn_ratio(self, z, p, nz=4):
+        res = self.fcn(z, p, nz)
+        return res['f+'] / res['f0']
+
+    def fcn_product(self, z, p, nz=4):
+        res = self.fcn(z, p, nz)
+        return res['f+'] * res['f0']
+
     def form_factor_fixed_x(self, form='f+', x=0.0,
               var='qsq', withpole=True, gvar=False):
         """
@@ -178,11 +181,38 @@ class FormFactors(object):
         p = self.params()
         formfactor = self.fcn(z, p)[form]
         formfactor /= self.phi(z, form)
+        if var == 'z' and withpole:
+            print "Poles should be removed when plotting with z-variable"
+            return
         if withpole:
             formfactor /= self.pole(qsq, form)
         if gvar:
             return x, formfactor
         return x, gv.mean(formfactor), gv.sdev(formfactor)
+
+    def form_factor_product_fixed_x(self, form1='f+', form2='f0', x=0.0, var='qsq',
+                                    withpole=True, gvar=False):
+        if form1 not in ('f+', 'f0') or form2 not in ('f+', 'f0'):
+            print "Only f+ and f0 form factors are provided."
+            return
+        f1 = self.form_factor_fixed_x(form1, x, var, withpole, gvar=True)
+        f2 = self.form_factor_fixed_x(form1, x, var, withpole, gvar=True)
+        res = f1 * f2
+        if gvar:
+            return x, res
+        return x, gv.mean(res), gv.sdev(res)
+
+    def form_factor_ratio_fixed_x(self, form1='f+', form2='f0', x=0.0, var='qsq',
+                                    withpole=True, gvar=False):
+        if form1 not in ('f+', 'f0') or form2 not in ('f+', 'f0'):
+            print "Only f+ and f0 form factors are provided."
+            return
+        f1 = self.form_factor_fixed_x(form1, x, var, withpole, gvar=True)
+        f2 = self.form_factor_fixed_x(form1, x, var, withpole, gvar=True)
+        res = f1 / f2
+        if gvar:
+            return x, res
+        return x, gv.mean(res), gv.sdev(res)
 
     def form_factor(self, form='f+', start=0, end=const.TMINUS, num_points=500,
               var='qsq', withpole=True, gvar=False):
@@ -200,6 +230,7 @@ class FormFactors(object):
                 form, x, var,
                 withpole, gvar) for x in xlst
         ]
+
 
 class Bs2K(FormFactors):
     """
